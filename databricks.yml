@@ -47,6 +47,8 @@ resources:
           default: "6"
         - name: code_path
           default: /Volumes/${var.catalog}/raw/code/${bundle.target}
+        - name: target
+          default: ${bundle.target}
       tasks:
         - task_key: transform
           notebook_task:

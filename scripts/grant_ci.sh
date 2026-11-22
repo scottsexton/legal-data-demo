@@ -4,7 +4,9 @@
 #
 #   - CAN_MANAGE on the SQL warehouse: so a prod deploy can grant the app CAN_USE on it
 #   - MANAGE on catalog legal_demo: so a prod deploy can grant the app SELECT on tables/index
-#   - CAN_MANAGE on the Vector Search endpoint: so prod pipeline runs can sync the index
+#   - CAN_MANAGE on the Vector Search endpoint: so prod pipeline runs can reach it
+#   - ownership of the Vector Search index: only an index's owner can sync it, and the prod
+#     job (run as this service principal) keeps it in sync. Dev runs then skip the sync.
 #
 # Usage: scripts/grant_ci.sh
 set -euo pipefail
@@ -26,5 +28,11 @@ databricks permissions update vector-search-endpoints "$VS_ID" --json "$(acl CAN
 echo "catalog $CATALOG: MANAGE"
 databricks grants update catalog "$CATALOG" \
   --json "{\"changes\":[{\"principal\":\"$SP\",\"add\":[\"MANAGE\"]}]}" >/dev/null
+
+INDEX="$CATALOG.silver.chunks_index"
+if databricks tables get "$INDEX" >/dev/null 2>&1; then
+  echo "index $INDEX: owner"
+  databricks tables update "$INDEX" --owner "$SP" >/dev/null
+fi
 
 echo "done"

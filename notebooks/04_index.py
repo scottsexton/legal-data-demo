@@ -3,6 +3,9 @@
 # MAGIC # 04 · Vector Search index on `silver.chunks`
 # MAGIC Creates (or syncs) a Delta Sync index whose embeddings Databricks computes with the
 # MAGIC embedding model endpoint, then runs a test query.
+# MAGIC
+# MAGIC Only the index's owner can sync it. The prod job's service principal owns it, so in the
+# MAGIC dev target (your own login) the sync is skipped and the existing index is just checked.
 
 # COMMAND ----------
 
@@ -14,9 +17,11 @@
 dbutils.widgets.text("catalog", "legal_demo")
 dbutils.widgets.text("embedding_model", "databricks-gte-large-en")
 dbutils.widgets.text("vs_endpoint", "legal-demo-vs")
+dbutils.widgets.text("target", "dev")
 catalog = dbutils.widgets.get("catalog")
 embedding_model = dbutils.widgets.get("embedding_model")
 endpoint_name = dbutils.widgets.get("vs_endpoint")
+target = dbutils.widgets.get("target")
 
 import time
 
@@ -71,9 +76,21 @@ existing_indexes = [i["name"] for i in vsc.list_indexes(endpoint_name).get("vect
 if index_name in existing_indexes:
     index = vsc.get_index(endpoint_name, index_name)
     wait_until_synced(index)  # finish any build or sync already in progress
-    print("syncing existing index")
-    index.sync()
-    time.sleep(30)  # let the sync register before polling
+    try:
+        index.sync()
+        print("syncing existing index")
+        time.sleep(30)  # let the sync register before polling
+    except Exception as e:
+        if "PERMISSION_DENIED" not in str(e) or target == "prod":
+            raise
+        try:
+            from databricks.sdk import WorkspaceClient
+
+            owner = WorkspaceClient().tables.get(index_name).owner
+        except Exception:
+            owner = "another principal"
+        print(f"skipping sync: the index is owned by {owner}, and only its owner can sync it.")
+        print("Run the prod job to sync it. Checking the existing index instead.")
 else:
     print("creating index")
     index = vsc.create_delta_sync_index(
