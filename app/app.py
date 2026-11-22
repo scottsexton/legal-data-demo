@@ -18,7 +18,7 @@ st.set_page_config(page_title="Indiana Opinions Explorer", page_icon="⚖️", l
 EXAMPLES = [
     "Who were the victims in the murder cases, and when were they killed?",
     "Which attorneys were disciplined, and what had they done?",
-    "What happened in 1998 according to these opinions?",
+    "What crimes happened in 2012, and who was involved?",
 ]
 
 

@@ -142,14 +142,14 @@ class Backend:
         )
 
     def events_in_years(self, years: list[int], limit: int = 30) -> pd.DataFrame:
-        """Verified events whose own date falls in one of these years."""
+        """Events whose own date falls in one of these years, verified quotes first."""
         placeholders, params = in_list("y", [str(y) for y in years])
         return self.sql(
             f"""SELECT doc_id, case_name_short, decision_date, actor, action, target,
                        event_date_iso, date_text, description, evidence_quote, quote_verified
                 FROM {EVENTS}
-                WHERE left(event_date_iso, 4) IN ({placeholders}) AND quote_verified
-                ORDER BY event_date_iso, event_id LIMIT :limit""",
+                WHERE left(event_date_iso, 4) IN ({placeholders})
+                ORDER BY quote_verified DESC, event_date_iso, event_id LIMIT :limit""",
             {**params, "limit": limit},
         )
 

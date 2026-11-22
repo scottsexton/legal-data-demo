@@ -6,6 +6,7 @@ from display import author_names, cite_links, escape_md, highlight, html_url, ti
 from rag import (
     MAX_SOURCES,
     PASSAGES_PER_SOURCE,
+    YEAR_SOURCES,
     build_messages,
     build_sources,
     cited_labels,
@@ -73,8 +74,16 @@ def test_build_sources_caps_cases_and_adds_year_events():
     chunks = [chunk(str(i)) for i in range(MAX_SOURCES + 3)]
     assert len(build_sources(chunks, [])) == MAX_SOURCES
     sources = build_sources([chunk("a")], [], [event("z", date="1998-06-01")])
-    assert [s.doc_id for s in sources] == ["a", "z"]
-    assert sources[1].passages == [] and sources[1].events[0]["event_date_iso"] == "1998-06-01"
+    assert [s.doc_id for s in sources] == ["z", "a"]  # year events come first
+    assert sources[0].passages == [] and sources[0].events[0]["event_date_iso"] == "1998-06-01"
+
+
+def test_year_events_keep_their_slots_but_are_capped():
+    chunks = [chunk(f"c{i}") for i in range(MAX_SOURCES)]
+    year = [event(f"y{i}", date="2012-01-02") for i in range(YEAR_SOURCES + 2)]
+    ids = [s.doc_id for s in build_sources(chunks, [], year)]
+    assert ids[:YEAR_SOURCES] == [f"y{i}" for i in range(YEAR_SOURCES)]
+    assert len(ids) == MAX_SOURCES and ids[YEAR_SOURCES:] == ["c0", "c1", "c2"]
 
 
 def test_strip_chunk_header():

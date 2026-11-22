@@ -4,7 +4,7 @@ Pure functions (no Databricks calls), so they can be unit tested.
 
 Each answer draws on up to MAX_SOURCES cases. A case's source has passages from the opinion
 (found by hybrid Vector Search) and the people/dates/actions extracted into gold.events. A
-question that names a year also pulls in verified events dated that year, since the cases were
+question that names a year also gets up to YEAR_SOURCES cases with events dated that year, since the cases were
 decided in 2013–2019 but describe events from much earlier.
 """
 
@@ -14,6 +14,7 @@ import re
 from dataclasses import dataclass, field
 
 MAX_SOURCES = 6
+YEAR_SOURCES = 3  # slots kept for cases with events in a year the question names
 PASSAGES_PER_SOURCE = 2
 EVENTS_PER_SOURCE = 12
 MAX_CONTEXT_CHARS = 40_000
@@ -59,13 +60,16 @@ def retrieval_query(question: str, history: list[dict]) -> str:
 
 
 def build_sources(chunks: list[dict], events: list[dict], year_events: list[dict] = ()) -> list:
-    """Group search hits and events into labelled sources, best-ranked case first."""
+    """Group search hits and events into labelled sources.
+
+    Cases with events in a year the question names come first (up to YEAR_SOURCES), so the
+    search hits can't crowd them out; then search hits in rank order."""
     sources: dict[str, Source] = {}
 
-    def source_for(row: dict) -> Source | None:
+    def source_for(row: dict, limit: int = MAX_SOURCES) -> Source | None:
         doc_id = row["doc_id"]
         if doc_id not in sources:
-            if len(sources) >= MAX_SOURCES:
+            if len(sources) >= limit:
                 return None
             sources[doc_id] = Source(
                 label=f"C{len(sources) + 1}",
@@ -75,14 +79,18 @@ def build_sources(chunks: list[dict], events: list[dict], year_events: list[dict
             )
         return sources[doc_id]
 
+    def add_event(src: Source | None, event: dict) -> None:
+        if src and len(src.events) < EVENTS_PER_SOURCE and event not in src.events:
+            src.events.append(event)
+
+    for event in year_events:
+        add_event(source_for(event, YEAR_SOURCES), event)
     for chunk in chunks:
         src = source_for(chunk)
         if src and len(src.passages) < PASSAGES_PER_SOURCE:
             src.passages.append(strip_chunk_header(chunk["text"]))
-    for event in list(events) + list(year_events):
-        src = source_for(event)
-        if src and len(src.events) < EVENTS_PER_SOURCE and event not in src.events:
-            src.events.append(event)
+    for event in events:
+        add_event(source_for(event), event)
     return list(sources.values())
 
 
