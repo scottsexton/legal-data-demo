@@ -10,6 +10,7 @@ import json
 import os
 import time
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 import rag
@@ -176,6 +177,25 @@ class Backend:
             {"q": name, "limit": limit},
         )
 
+    def keyword_case_ranking(self, terms: list[str], limit: int = 20) -> list[str]:
+        """Cases ranked by which question words their full text contains, rare words counting
+        more (IDF). Complements chunk search, where one case with many similar passages can
+        crowd out a case that matches the question's distinctive words."""
+        if not terms:
+            return []
+        placeholders, params = in_list("t", terms)
+        df = self.sql(
+            f"""WITH terms AS (SELECT explode(array({placeholders})) AS term),
+                hits AS (SELECT d.doc_id, t.term FROM {DOCS} d JOIN terms t
+                         ON instr(lower(d.full_text), t.term) > 0),
+                freq AS (SELECT term, count(*) AS n FROM hits GROUP BY term)
+                SELECT h.doc_id, sum(ln((SELECT count(*) FROM {DOCS}) / f.n)) AS score
+                FROM hits h JOIN freq f USING (term)
+                GROUP BY h.doc_id ORDER BY score DESC, h.doc_id LIMIT :limit""",
+            {**params, "limit": limit},
+        )
+        return list(df.doc_id)
+
     def semantic_search(self, query: str, k: int = 20, doc_id: str | None = None) -> list[dict]:
         """Hybrid (meaning + keyword) search over opinion chunks. Returns chunks with a score."""
         resp = self.w.vector_search_indexes.query_index(
@@ -231,9 +251,27 @@ class Backend:
         """Find the sources for a question: search hits plus extracted events (see rag.py)."""
         history = history or []
         query = rag.retrieval_query(question, history)
-        chunks = self.semantic_search(query, k=12, doc_id=scope)
-        doc_ids = list(dict.fromkeys(c["doc_id"] for c in chunks))[: rag.MAX_SOURCES]
-        events = self.events(doc_ids or ([scope] if scope else []), rag.EVENTS_PER_SOURCE)
+        if scope:
+            chunks = self.semantic_search(query, k=12, doc_id=scope)
+            doc_ids = [scope]
+        else:
+            # Passage search and whole-case keyword ranking, run in parallel, then fused.
+            with ThreadPoolExecutor(2) as pool:
+                hits = pool.submit(self.semantic_search, query, 30)
+                keyword = pool.submit(self.keyword_case_ranking, rag.query_terms(query))
+                hits, keyword = hits.result(), keyword.result()
+            by_passage = [h["doc_id"] for h in hits]
+            doc_ids = rag.fuse_rankings(by_passage, keyword)[: rag.MAX_SOURCES]
+            missing = [d for d in doc_ids if d not in set(by_passage)]
+            if missing:  # cases found only by keywords: get their best passages
+                with ThreadPoolExecutor(len(missing)) as pool:
+                    for part in pool.map(lambda d: self.semantic_search(query, 2, d), missing):
+                        hits += part
+            rank = {d: i for i, d in enumerate(doc_ids)}
+            chunks = sorted(
+                (h for h in hits if h["doc_id"] in rank), key=lambda h: rank[h["doc_id"]]
+            )
+        events = self.events(doc_ids, rag.EVENTS_PER_SOURCE)
         years = [] if scope else rag.extract_years(question)
         year_events = self.events_in_years(years) if years else pd.DataFrame()
         return rag.build_sources(chunks, events.to_dict("records"), year_events.to_dict("records"))

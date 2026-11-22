@@ -13,6 +13,8 @@ from rag import (
     extract_years,
     format_context,
     format_event,
+    fuse_rankings,
+    query_terms,
     retrieval_query,
     strip_chunk_header,
 )
@@ -236,3 +238,20 @@ def test_chat_gives_up_after_retries_and_on_other_errors():
     with pytest.raises(_RateLimited):
         "".join(_backend_with(chat).chat_stream([]))
     assert chat.calls == 1
+
+
+# ---- retrieval helpers -------------------------------------------------------------------
+def test_query_terms():
+    q = "According to Jefferson County, who started the fire at its courthouse in 2009?"
+    assert query_terms(q) == ["jefferson", "county", "started", "fire", "courthouse", "2009"]
+    assert query_terms("Who did it?") == []
+    assert len(query_terms(" ".join(f"word{i}" for i in range(30)))) == 12
+
+
+def test_fuse_rankings_rewards_agreement():
+    # "t" is 8th by passages but 1st by keywords; "a" is 1st by passages only.
+    passages = ["a", "a", "b", "c", "d", "e", "f", "g", "t"]
+    keywords = ["t", "x", "b"]
+    fused = fuse_rankings(passages, keywords)
+    assert fused[:2] == ["b", "t"] and fused.index("t") < fused.index("a") < fused.index("c")
+    assert fuse_rankings([], []) == []

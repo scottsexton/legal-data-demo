@@ -155,7 +155,9 @@ scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy and (
 - [x] **Seed questions:** the Ask tab offers 5 examples: three broad (victims and dates, disciplined attorneys, crimes in 2012) and two specific ones from the evaluation set.
 - [x] **README:** screenshots of each tab, a 5-minute demo script, how it works, evaluation results, and setup.
 - [x] **Package rename:** `databricks-vectorsearch` → `databricks-ai-search` (`AISearchClient`).
-- Possible next steps: a reranker or more candidates per question (for misses like q03), a group for demo users with CAN_USE on the app, and scheduling the prod job.
+- [x] **Fixed the q03 miss (now 20/20):** Vector Search's reranker isn't enabled on Free Edition, so retrieval now fuses two rankings with reciprocal rank fusion: hybrid passage search (30 chunks) and a SQL keyword ranking of whole cases, where rare question words weigh more (IDF). A case with many similar passages (an arson case, for a question about a courthouse fire) no longer crowds out the case whose text matches the question's distinctive words ("Jefferson County", "courthouse"). Cases found only by keywords get their best passages from a search filtered to that case. Gathering sources takes about 1.5s.
+- [x] **Branch protection on `main`:** changes go through pull requests that pass CI (`lint-and-test`) on the latest commit; it applies to admins too, with linear history and no force pushes or deletions. 0 approvals required, since there is one maintainer.
+- Possible next step: schedule the prod job.
 
 ---
 

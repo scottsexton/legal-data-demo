@@ -50,6 +50,36 @@ def extract_years(text: str) -> list[int]:
     return list(dict.fromkeys(years))
 
 
+# Words that say nothing about which case is meant.
+STOPWORDS = set(
+    """about after again against also among an and any are around as at be been before being
+    between both but by can case cases could court courts did do does doing done during each
+    for from had has have he her here him his how if in into is it its legal many may more
+    most much not of on one only opinion opinions or other our out over said same she should
+    so some such than that the their them then there these they this those through to under
+    until up upon was we were what when where which while who whom whose why will with would
+    you your according tell give list show happened""".split()
+)
+FUSION_K = 60  # standard reciprocal-rank-fusion constant
+
+
+def query_terms(question: str, max_terms: int = 12) -> list[str]:
+    """Lowercased content words (4+ letters, or any number) for keyword ranking of cases."""
+    words = re.findall(r"[a-z0-9][a-z0-9'\-]*", question.lower())
+    terms = [w.strip("'-") for w in words]
+    terms = [t for t in terms if t not in STOPWORDS and (len(t) >= 4 or t.isdigit())]
+    return list(dict.fromkeys(terms))[:max_terms]
+
+
+def fuse_rankings(*rankings: list[str], k: int = FUSION_K) -> list[str]:
+    """Reciprocal rank fusion: merge ranked lists of ids; ids high in several lists win."""
+    scores: dict[str, float] = {}
+    for ranking in rankings:
+        for rank, item in enumerate(dict.fromkeys(ranking), start=1):
+            scores[item] = scores.get(item, 0.0) + 1.0 / (k + rank)
+    return sorted(scores, key=lambda item: -scores[item])
+
+
 def retrieval_query(question: str, history: list[dict]) -> str:
     """The text to search with. Short follow-ups ("and who was the judge?") borrow context
     from the previous question."""
