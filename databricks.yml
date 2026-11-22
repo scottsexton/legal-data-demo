@@ -1,0 +1,22 @@
+# Databricks Asset Bundle: defines the jobs and app that get deployed to the workspace.
+# Docs: https://docs.databricks.com/dev-tools/bundles/
+bundle:
+  name: legal-data-demo
+
+variables:
+  catalog:
+    description: Unity Catalog catalog that holds all demo data
+    default: legal_demo
+
+# Jobs (ingest → transform → extract → index) and the Streamlit app are added
+# as resources in Phases 3–5.
+resources: {}
+
+targets:
+  dev:
+    mode: development
+    default: true
+    # The workspace host comes from your Databricks CLI profile (`databricks auth login`)
+    # or the DATABRICKS_HOST environment variable, so it isn't hard-coded here.
+  prod:
+    mode: production

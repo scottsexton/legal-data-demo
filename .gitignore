@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+.databrickscfg
+
+# Databricks bundle state
+.databricks/
+
+# Local data downloads (raw data lives in a Unity Catalog Volume)
+data/*
+!data/README.md
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
