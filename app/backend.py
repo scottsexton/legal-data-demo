@@ -60,6 +60,14 @@ def _convert(value: str | None, type_name: str):
     return value  # STRING, and DATE/TIMESTAMP as ISO strings
 
 
+def rows_to_frame(names: list[str], types: list[str], rows: list[list]) -> pd.DataFrame:
+    """Typed Python values in an object DataFrame. Object dtype keeps missing values as None
+    and numbers as ints: pandas 3 would otherwise turn a missing string into NaN (a float),
+    which breaks code that joins or tests text."""
+    data = [[_convert(v, t) for v, t in zip(row, types, strict=True)] for row in rows]
+    return pd.DataFrame(data, columns=names, dtype=object)
+
+
 def in_list(prefix: str, values: list) -> tuple[str, dict]:
     """SQL `IN (...)` placeholders and their parameters, e.g. (":d0, :d1", {"d0": .., "d1": ..})."""
     params = {f"{prefix}{i}": v for i, v in enumerate(values)}
@@ -102,8 +110,7 @@ class Backend:
             rows.extend(part.data_array or [])
             chunk = part.next_chunk_index
         types = [c.type_name.value if c.type_name else "STRING" for c in columns]
-        data = [[_convert(v, t) for v, t in zip(row, types, strict=True)] for row in rows]
-        return pd.DataFrame(data, columns=[c.name for c in columns])
+        return rows_to_frame([c.name for c in columns], types, rows)
 
     # ---- Browse ------------------------------------------------------------------------
     def documents(self) -> pd.DataFrame:

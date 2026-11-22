@@ -1,7 +1,7 @@
 """Tests for the app's pure helpers (app/rag.py, app/display.py, SQL helpers in app/backend.py)."""
 
 import pytest
-from backend import Backend, _convert, _param, in_list
+from backend import Backend, _convert, _param, in_list, rows_to_frame
 from display import author_names, cite_links, escape_md, highlight, html_url, tidy_snippet
 from rag import (
     MAX_SOURCES,
@@ -255,3 +255,16 @@ def test_fuse_rankings_rewards_agreement():
     fused = fuse_rankings(passages, keywords)
     assert fused[:2] == ["b", "t"] and fused.index("t") < fused.index("a") < fused.index("c")
     assert fuse_rankings([], []) == []
+
+
+def test_rows_to_frame_keeps_none_and_ints():
+    # Missing text must stay None (pandas 3 would make it NaN, a float).
+    df = rows_to_frame(
+        ["actor", "target", "n"],
+        ["STRING", "STRING", "INT"],
+        [["Court", None, "3"], ["Jury", "x", None]],
+    )
+    records = df.to_dict("records")
+    assert records[0] == {"actor": "Court", "target": None, "n": 3}
+    assert records[1]["n"] is None
+    assert format_event({**records[0], "action": "affirmed"}) == "- undated | Court | affirmed"

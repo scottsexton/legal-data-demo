@@ -86,6 +86,7 @@ mkdir .venv.nosync && ln -s .venv.nosync .venv
 uv sync --group dev        # creates .venv with Python 3.12 and all dependencies
 uv run pytest              # run tests
 uv run ruff check .        # lint
+uv run python scripts/smoke_test_app.py   # drive the real app headless (uses your Databricks login)
 ```
 
 ### Data
@@ -133,7 +134,7 @@ src/legal_demo/     shared pipeline code (CAP download, parsing, chunking, extra
 notebooks/          pipeline notebooks (transform → extract + index → validate)
 app/                Streamlit app: app.py (UI), backend.py (data and model), rag.py (prompting)
 eval/               evaluation questions and latest results
-scripts/            download, deploy, permissions, app check and evaluation scripts
+scripts/            download, deploy, permissions, app checks, evaluation and app smoke test
 tests/              pytest tests
 docs/               plan and screenshots
 ```
