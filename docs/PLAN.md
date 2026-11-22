@@ -157,6 +157,7 @@ scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy and (
 - [x] **Package rename:** `databricks-vectorsearch` → `databricks-ai-search` (`AISearchClient`).
 - [x] **Fixed the q03 miss (now 20/20):** Vector Search's reranker isn't enabled on Free Edition, so retrieval now fuses two rankings with reciprocal rank fusion: hybrid passage search (30 chunks) and a SQL keyword ranking of whole cases, where rare question words weigh more (IDF). A case with many similar passages (an arson case, for a question about a courthouse fire) no longer crowds out the case whose text matches the question's distinctive words ("Jefferson County", "courthouse"). Cases found only by keywords get their best passages from a search filtered to that case. Gathering sources takes about 1.5s.
 - [x] **Branch protection on `main`:** changes go through pull requests that pass CI (`lint-and-test`) on the latest commit; it applies to admins too, with linear history and no force pushes or deletions. 0 approvals required, since there is one maintainer.
+- [x] **Pandas 3 compatibility:** Dependabot proposed pandas 3. A headless run of the app (`scripts/smoke_test_app.py`, Streamlit's AppTest) showed every Ask question failing under pandas 3: missing text values became NaN (a float) instead of None. Query results are now object-dtype DataFrames, which keep None under both versions. The unused `databricks-connect` dev dependency is removed.
 - Possible next step: schedule the prod job.
 
 ---
