@@ -19,9 +19,22 @@ data/               notes on the dataset (raw data is not committed)
 ```
 
 ## Local setup
+If the repo is inside an iCloud-synced folder (such as `~/Documents`), iCloud sets the macOS
+"hidden" flag on `.venv`, and Python then skips its `.pth` files, which breaks
+`import legal_demo`. Keep the environment in a folder iCloud ignores:
+```bash
+mkdir .venv.nosync && ln -s .venv.nosync .venv
+```
+
 ```bash
 uv sync --group dev        # creates .venv with Python 3.12 and all dependencies
 uv run pytest              # run tests
 uv run ruff check .        # lint
 uv run streamlit run app/app.py   # run the app locally
 ```
+
+## Data
+```bash
+uv run python scripts/download_cap.py --upload   # download 459 Indiana Supreme Court opinions, upload to UC
+```
+See [data/README.md](data/README.md) for the source, filter and layout.

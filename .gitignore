@@ -1,7 +1,9 @@
 # Python
 __pycache__/
 *.py[cod]
-.venv/
+# .venv is a symlink to .venv.nosync so iCloud Drive doesn't sync it (see README)
+.venv
+.venv.nosync/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/

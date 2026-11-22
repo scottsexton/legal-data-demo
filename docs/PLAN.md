@@ -18,10 +18,10 @@ A signed-in user can:
 | CUAD (Atticus Project) | 510 commercial contracts with 41 expert-labeled clause types | CC BY 4.0 | Good for parties, effective dates and obligations. It's contracts, not cases. |
 | Pile of Law | 256GB mixed legal corpus | Mixed (mostly CC BY-NC-SA) | Too big and mixed for a demo. |
 
-**Chosen slice: Indiana Supreme Court opinions from the North Eastern Reporter, 3d series (N.E.3d), about 500 cases from 2016–2018.**
-- **Why Indiana:** the court sits in Indianapolis, which suits the audience. These are modern opinions, averaging about 14k characters each, with clear parties, dates and outcomes.
+**Chosen slice: all 459 full Indiana Supreme Court opinions in the North Eastern Reporter, 3d series (N.E.3d), decided 2013–2019.** (Downloaded in Phase 3. Details in `data/README.md`.)
+- **Why Indiana:** the court sits in Indianapolis, which suits the audience. These are modern opinions, with a median of about 19k characters, and clear parties, dates and outcomes.
 - **Why N.E.3d:** CAP's own Indiana reporter (`ind`) stops in 1981. Modern Indiana cases are only in the regional N.E.2d/N.E.3d reporters, which mix in Ohio, New York, Illinois and Massachusetts. We filter on `court.name == "Supreme Court of Indiana"` using each volume's `CasesMetadata.json`.
-- **Volume:** a sample (vol. 100) had 265 cases, 10 of them Indiana Supreme Court. Taking the latest ~50 volumes (about vol. 81–130) gives about 500 cases. Widen the range or add `Court of Appeals of Indiana` if you need more.
+- **Volume:** 91% of Indiana Supreme Court entries are one-line orders ("Transfer denied"), so we also require `analysis.char_count >= 5000`. Scanning all 130 volumes gives 459 real opinions. Add `Court of Appeals of Indiana` if you need more.
 - **Fallback (Illinois):** Illinois Supreme Court, `ill-2d`, latest volumes (about 230–242, 2008–2011). That reporter is Illinois-only, so no filtering is needed, but its opinions are longer (about 60k characters).
 
 **CAP layout (verified):** `https://static.case.law/{reporter}/{volume}/CasesMetadata.json` lists the cases in a volume. Each case's full text is at `.../{volume}/cases/{file_name}.json`, and a whole volume is at `{reporter}/{volume}.zip`.
@@ -79,28 +79,20 @@ GitHub repo ──(GitHub Actions + Databricks Asset Bundles)──► Databrick
 - [x] **LLM access:** 8 chat and 3 embedding endpoints are ready. `scripts/smoke_test_llm.py` tests them. No Claude models on Free Edition.
   - **Chat:** `databricks-meta-llama-3-3-70b-instruct`. It found all 4 events in the test passage as valid JSON (3.5s). Fastest alternative: `databricks-qwen3-next-80b-a3b-instruct` (1.2s, 3 events). `qwen35-122b` returned invalid JSON.
   - **Embeddings:** `databricks-gte-large-en`, 1024 dimensions.
-- [ ] **Unity Catalog permissions:** Free Edition may not allow `CREATE CATALOG`. If it doesn't, use `workspace.legal_demo_*` schemas instead (check at the start of Phase 4).
+- [x] **Unity Catalog permissions:** Free Edition *does* allow `CREATE CATALOG`, so we use a dedicated `legal_demo` catalog.
 
 ## Phase 3: Download the Test Dataset
-- [x] Slice chosen: Indiana Supreme Court in `ne3d`, volumes about 81–130, about 500 cases.
-- [ ] Write `notebooks/01_ingest.py`, which:
-  1. For each volume, fetches `https://static.case.law/ne3d/{vol}/CasesMetadata.json` (skip any volume that returns 404, since some volume numbers are missing).
-  2. Keeps cases where `court.name == "Supreme Court of Indiana"`.
-  3. Fetches each kept case's `cases/{file_name}.json`, waiting briefly between requests.
-  4. Stops at `MAX_CASES` (a parameter, default 500).
-- [ ] Write the raw files to a **Unity Catalog Volume**: `/Volumes/legal_demo/raw/cap/`.
-- [ ] Record the source URL, license note and download date in `data/README.md`. This matters for the demo's credibility.
+- [x] **Serverless internet check:** Free Edition serverless can reach PyPI but gets **HTTP 403** from static.case.law, so the download runs on the laptop instead of in a notebook.
+- [x] `scripts/download_cap.py` (logic in `src/legal_demo/cap.py`, with tests):
+  1. Goes through N.E.3d volumes 130 → 1 and fetches each `CasesMetadata.json` (skipping any that return 404).
+  2. Keeps `court.name == "Supreme Court of Indiana"` and `analysis.char_count >= 5000`.
+  3. Fetches each case JSON with retries and a 0.2s delay, and resumes if re-run.
+  4. Writes `manifest.jsonl` and `DOWNLOADED_ON`, then uploads everything with `--upload` / `--upload-only` (Databricks Files API).
+- [x] Uploaded to `/Volumes/legal_demo/raw/cap/`: 461 files, checked with SQL `read_files` (459 unique cases, 532 opinions).
+- [x] Source, license, filter and download date recorded in `data/README.md`.
 
 ## Phase 4: Create & Load the Data Storage
-- [ ] **Unity Catalog objects** (SQL or bundle-managed):
-  ```sql
-  CREATE CATALOG IF NOT EXISTS legal_demo;
-  CREATE SCHEMA IF NOT EXISTS legal_demo.raw;      -- Volume for files
-  CREATE VOLUME  IF NOT EXISTS legal_demo.raw.cap;
-  CREATE SCHEMA IF NOT EXISTS legal_demo.bronze;
-  CREATE SCHEMA IF NOT EXISTS legal_demo.silver;
-  CREATE SCHEMA IF NOT EXISTS legal_demo.gold;
-  ```
+- [x] **Unity Catalog objects:** done early in Phase 3. See `sql/00_setup.sql`: catalog `legal_demo`, schemas `raw`/`bronze`/`silver`/`gold`, Volume `raw.cap`, and grants to the CI service principal.
 - [ ] **Bronze:** `bronze.documents_raw` holds the JSON as loaded (Auto Loader or `read_files`).
 - [ ] **Silver:** `silver.documents` has `doc_id, case_name, court, decision_date, citation, judges, parties, full_text, source_url`.
 - [ ] **Silver:** `silver.chunks` has `chunk_id, doc_id, chunk_index, text`, with about 1,000-token chunks that overlap. Turn on Change Data Feed.
