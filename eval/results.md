@@ -4,16 +4,16 @@ Model `databricks-qwen3-next-80b-a3b-instruct`, 20 questions from `eval/question
 
 | Metric | Score |
 |---|---|
-| Expected case retrieved | 19/20 |
-| Expected case cited | 19/20 |
-| All expected facts in answer | 19/20 |
-| Median seconds per answer | 1.8 |
+| Expected case retrieved | 20/20 |
+| Expected case cited | 20/20 |
+| All expected facts in answer | 20/20 |
+| Median seconds per answer | 4.1 |
 
 | # | Type | Question | Retrieved | Cited | Facts |
 |---|---|---|---|---|---|
 | q01 | who | While jailed, who gave police information about a missing woman named Stephanie Kirk, and which murder was he being held for? | ✓ | ✓ | 2/2 |
 | q02 | what | What happened at William and Betty Kindle's home on May 13, 2004? | ✓ | ✓ | 2/2 |
-| q03 | who | According to Jefferson County, who started the fire at its courthouse, and what was he doing? | ✗ | ✗ | 0/2 |
+| q03 | who | According to Jefferson County, who started the fire at its courthouse, and what was he doing? | ✓ | ✓ | 2/2 |
 | q04 | when | When were the Jakubowiczs in a car accident, and who was the other driver? | ✓ | ✓ | 2/2 |
 | q05 | when | Who signed the order setting new precinct boundaries for Marion County, and on what date? | ✓ | ✓ | 2/2 |
 | q06 | when | When did the Whitestown Town Council introduce its annexation ordinances, and how many were there? | ✓ | ✓ | 2/2 |
@@ -31,10 +31,3 @@ Model `databricks-qwen3-next-80b-a3b-instruct`, 20 questions from `eval/question
 | q18 | who | Which delegate to the 1850 Indiana constitutional convention argued that laws should be general rather than local? | ✓ | ✓ | 1/1 |
 | q19 | when | When was Angelo Bobadilla transferred into ICE custody? | ✓ | ✓ | 1/1 |
 | q20 | what | What did a juror report on the fifth day of the Ramirez murder trial? | ✓ | ✓ | 1/1 |
-
-## Answers that missed a fact
-
-**q03. According to Jefferson County, who started the fire at its courthouse, and what was he doing?** (expected: Board of Commissioners v. Teton Corp.)
-
-The provided sources do not mention Jefferson County or any fire at a courthouse. Therefore, the question cannot be answered based on the given materials.
-

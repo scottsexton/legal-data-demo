@@ -55,8 +55,9 @@ Databricks Job legal-data-pipeline        ▼
   validate  ──► counts, consistency and quote checks
                                           │
 Databricks App (Streamlit) ◄──────────────┘
-  Ask = hybrid search for passages + gold.events for those cases (+ events dated in any year
-  the question names) ──► chat model, told to cite [C#] and never invent dates
+  Ask = hybrid passage search (Vector Search) fused with a keyword ranking of whole cases (SQL,
+  rare words weigh more) ──► top 6 cases ──► their passages + gold.events (+ events dated in
+  any year the question names) ──► chat model, told to cite [C#] and never invent dates
 ```
 More detail: [docs/PLAN.md](docs/PLAN.md) (decisions and what changed in each phase) and
 [notebooks/README.md](notebooks/README.md).
@@ -68,9 +69,9 @@ written from quotes the pipeline verified in the opinions.
 ```bash
 uv run python scripts/run_eval.py      # writes eval/results.md; fails below 80% of facts found
 ```
-Latest results ([eval/results.md](eval/results.md)): **19/20** answers contain every expected
-fact and cite the right case. The miss (q03) is a search miss: that case ranks 8th, and the model
-says the sources don't cover it rather than guessing.
+Latest results ([eval/results.md](eval/results.md)): **20/20** answers contain every expected
+fact and cite the right case. (Before the keyword ranking described above was added, q03 was a
+search miss at 19/20: the model said its sources didn't cover it rather than guessing.)
 
 ## Run it yourself
 ### Local setup
