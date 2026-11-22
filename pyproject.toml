@@ -12,12 +12,12 @@ dependencies = [
 dev = [
     "databricks-sdk>=0.40",
     "databricks-connect>=16.1,<17",
-    "databricks-vectorsearch>=0.40",
     "pandas>=2.2",
     "streamlit>=1.40",
     "pytest>=8.3",
     "ruff>=0.8",
     "openai>=1.60",
+    "databricks-ai-search>=0.83",
 ]
 
 [build-system]

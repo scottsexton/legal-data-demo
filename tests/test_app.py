@@ -1,7 +1,7 @@
 """Tests for the app's pure helpers (app/rag.py, app/display.py, SQL helpers in app/backend.py)."""
 
 import pytest
-from backend import _convert, _param, in_list
+from backend import Backend, _convert, _param, in_list
 from display import author_names, cite_links, escape_md, highlight, html_url, tidy_snippet
 from rag import (
     MAX_SOURCES,
@@ -194,3 +194,45 @@ def test_author_names():
     ]
     assert author_names(raw) == ["Rush", "Massa", "Per curiam", "Slaughter", "Goff"]
     assert author_names(None) == []
+
+
+# ---- chat retries --------------------------------------------------------------------------
+class _RateLimited(Exception):
+    status_code = 429
+
+
+class _FakeChat:
+    def __init__(self, failures: int, status: int = 429):
+        self.failures, self.status, self.calls = failures, status, 0
+
+    def create(self, **kwargs):
+        self.calls += 1
+        if self.calls <= self.failures:
+            err = _RateLimited("slow down")
+            err.status_code = self.status
+            raise err
+        delta = type("D", (), {"content": "hello"})()
+        choice = type("C", (), {"delta": delta})()
+        return [type("P", (), {"choices": [choice]})()]
+
+
+def _backend_with(chat: _FakeChat) -> Backend:
+    client = type("O", (), {"chat": type("Ch", (), {"completions": chat})()})()
+    serving = type("S", (), {"get_open_ai_client": lambda self: client})()
+    b = Backend(client=type("W", (), {"serving_endpoints": serving})())
+    b.RETRY_DELAYS_S = (0, 0)
+    return b
+
+
+def test_chat_retries_rate_limits():
+    chat = _FakeChat(failures=2)
+    assert "".join(_backend_with(chat).chat_stream([])) == "hello" and chat.calls == 3
+
+
+def test_chat_gives_up_after_retries_and_on_other_errors():
+    with pytest.raises(_RateLimited):
+        "".join(_backend_with(_FakeChat(failures=5)).chat_stream([]))
+    chat = _FakeChat(failures=1, status=400)
+    with pytest.raises(_RateLimited):
+        "".join(_backend_with(chat).chat_stream([]))
+    assert chat.calls == 1

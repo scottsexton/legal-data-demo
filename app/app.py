@@ -15,10 +15,13 @@ from display import author_names, cite_links, escape_md, highlight, html_url, ti
 
 st.set_page_config(page_title="Indiana Opinions Explorer", page_icon="⚖️", layout="wide")
 
+# Shown on an empty Ask tab. Broad questions first, then specific ones from eval/questions.jsonl.
 EXAMPLES = [
     "Who were the victims in the murder cases, and when were they killed?",
     "Which attorneys were disciplined, and what had they done?",
     "What crimes happened in 2012, and who was involved?",
+    "How did Ashonta Jackson try to distract law enforcement during a bank robbery?",
+    "What did a juror report on the fifth day of the Ramirez murder trial?",
 ]
 
 
@@ -282,16 +285,6 @@ with search_tab:
 
 
 # ---- Ask -----------------------------------------------------------------------------------
-def gather_sources(question: str, scope: str | None, history: list[dict]):
-    b = backend()
-    chunks = b.semantic_search(rag.retrieval_query(question, history), k=12, doc_id=scope)
-    doc_ids = list(dict.fromkeys(c["doc_id"] for c in chunks))[: rag.MAX_SOURCES]
-    events = b.events(doc_ids or ([scope] if scope else []), rag.EVENTS_PER_SOURCE)
-    years = [] if scope else rag.extract_years(question)
-    year_events = b.events_in_years(years) if years else pd.DataFrame()
-    return rag.build_sources(chunks, events.to_dict("records"), year_events.to_dict("records"))
-
-
 def show_sources(sources: list[rag.Source], answer: str, key: str) -> None:
     cited = rag.cited_labels(answer)
     ordered = sorted(sources, key=lambda s: cited.index(s.label) if s.label in cited else 99)
@@ -344,7 +337,7 @@ with ask_tab:
         with st.chat_message("assistant"):
             try:
                 with st.spinner("Finding relevant passages and events…"):
-                    sources = gather_sources(question, scope, history)
+                    sources = backend().gather_sources(question, scope, history)
                 answer = st.write_stream(
                     backend().chat_stream(rag.build_messages(question, sources, history))
                 )

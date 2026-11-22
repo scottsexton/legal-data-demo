@@ -148,8 +148,16 @@ scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy and (
 
 ---
 
-## Later Phases (After Data Is Loaded)
-- **Phase 7, Demo polish:** seed questions, an evaluation set of 20 Q&A pairs, and a short README with screenshots.
+## Phase 7: Demo Polish ✅
+- [x] **Evaluation set:** `eval/questions.jsonl` has 20 questions (who / when / what), each with the case that answers it and the facts the answer must contain (with accepted spellings, like `August 2, 2007` or `2007-08-02`). All come from event quotes verified in the opinions.
+- [x] **Evaluation script:** `scripts/run_eval.py` runs each question through the app's own code (`Backend.answer`) and scores retrieval (right case among the sources), citation (right case cited) and facts. It writes `eval/results.md`. Result: **19/20** on all three. The miss is a search miss (the case ranks 8th of the 6 used); the model says its sources don't cover it.
+- [x] **Rate-limit retries:** the first evaluation run hit HTTP 429 (Free Edition's per-workspace limit on pay-per-token models) on 4 of 20 questions. The chat call now retries 429 and 5xx errors with backoff (1, 2, 4, 8s), so busy moments in a live demo don't fail.
+- [x] **Seed questions:** the Ask tab offers 5 examples: three broad (victims and dates, disciplined attorneys, crimes in 2012) and two specific ones from the evaluation set.
+- [x] **README:** screenshots of each tab, a 5-minute demo script, how it works, evaluation results, and setup.
+- [x] **Package rename:** `databricks-vectorsearch` → `databricks-ai-search` (`AISearchClient`).
+- Possible next steps: a reranker or more candidates per question (for misses like q03), a group for demo users with CAN_USE on the app, and scheduling the prod job.
+
+---
 
 ## Decisions
 - ✅ **Dataset:** Indiana Supreme Court, N.E.3d, about 500 cases (fallback: Illinois Supreme Court, `ill-2d`).

@@ -12,6 +12,7 @@ import time
 from collections.abc import Iterator
 
 import pandas as pd
+import rag
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import (
     Disposition,
@@ -196,13 +197,49 @@ class Backend:
         return [dict(zip(names, row, strict=True)) for row in resp.result.data_array or []]
 
     # ---- Chat --------------------------------------------------------------------------
+    # Free Edition rate-limits pay-per-token models (HTTP 429), so busy moments need retries.
+    RETRY_STATUS = {429, 500, 502, 503, 504}
+    RETRY_DELAYS_S = (1, 2, 4, 8)
+
     def chat_stream(self, messages: list[dict], max_tokens: int = 1500) -> Iterator[str]:
-        """Stream the chat model's reply, piece by piece."""
-        # A fresh OpenAI client per call picks up a current OAuth token.
-        client = self.w.serving_endpoints.get_open_ai_client()
-        stream = client.chat.completions.create(
-            model=CHAT_MODEL, messages=messages, max_tokens=max_tokens, temperature=0.1, stream=True
-        )
+        """Stream the chat model's reply, piece by piece. Retries rate limits and server
+        errors that happen before the reply starts."""
+        for delay in (*self.RETRY_DELAYS_S, None):
+            # A fresh OpenAI client per call picks up a current OAuth token.
+            client = self.w.serving_endpoints.get_open_ai_client()
+            try:
+                stream = client.chat.completions.create(
+                    model=CHAT_MODEL,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=0.1,
+                    stream=True,
+                )
+                break
+            except Exception as e:
+                if delay is None or getattr(e, "status_code", None) not in self.RETRY_STATUS:
+                    raise
+                time.sleep(delay)
         for part in stream:
             if part.choices and part.choices[0].delta and part.choices[0].delta.content:
                 yield part.choices[0].delta.content
+
+    # ---- Question answering ------------------------------------------------------------
+    def gather_sources(
+        self, question: str, scope: str | None = None, history: list[dict] | None = None
+    ) -> list:
+        """Find the sources for a question: search hits plus extracted events (see rag.py)."""
+        history = history or []
+        query = rag.retrieval_query(question, history)
+        chunks = self.semantic_search(query, k=12, doc_id=scope)
+        doc_ids = list(dict.fromkeys(c["doc_id"] for c in chunks))[: rag.MAX_SOURCES]
+        events = self.events(doc_ids or ([scope] if scope else []), rag.EVENTS_PER_SOURCE)
+        years = [] if scope else rag.extract_years(question)
+        year_events = self.events_in_years(years) if years else pd.DataFrame()
+        return rag.build_sources(chunks, events.to_dict("records"), year_events.to_dict("records"))
+
+    def answer(self, question: str, scope: str | None = None) -> tuple[str, list]:
+        """Answer a question in one go (no streaming). Returns (answer, sources)."""
+        sources = self.gather_sources(question, scope)
+        text = "".join(self.chat_stream(rag.build_messages(question, sources, [])))
+        return text, sources

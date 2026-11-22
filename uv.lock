@@ -269,21 +269,6 @@ wheels = [
 ]
 
 [[package]]
-name = "databricks-vectorsearch"
-version = "0.82"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "databricks-ai-search" },
-    { name = "deprecation" },
-    { name = "httpx" },
-    { name = "mlflow-skinny" },
-    { name = "requests" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ef/92/660669df0541ef27271a2dacca281af4974d3b13936fbeb34b030cca03d8/databricks_vectorsearch-0.82-py3-none-any.whl", hash = "sha256:6d76759a6a810d8ed9e504329ed5612837a69e807c2a36a27c53f421e56e42ea", size = 8942, upload-time = "2026-10-30T03:58:31.058Z" },
-]
-
-[[package]]
 name = "deprecation"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -597,9 +582,9 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "databricks-ai-search" },
     { name = "databricks-connect" },
     { name = "databricks-sdk" },
-    { name = "databricks-vectorsearch" },
     { name = "openai" },
     { name = "pandas" },
     { name = "pytest" },
@@ -612,9 +597,9 @@ requires-dist = [{ name = "requests", specifier = ">=2.32" }]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "databricks-ai-search", specifier = ">=0.83" },
     { name = "databricks-connect", specifier = ">=16.1,<17" },
     { name = "databricks-sdk", specifier = ">=0.40" },
-    { name = "databricks-vectorsearch", specifier = ">=0.40" },
     { name = "openai", specifier = ">=1.60" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "pytest", specifier = ">=8.3" },

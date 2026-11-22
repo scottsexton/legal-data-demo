@@ -9,7 +9,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install --quiet databricks-vectorsearch
+# MAGIC %pip install --quiet databricks-ai-search
 # MAGIC %restart_python
 
 # COMMAND ----------
@@ -25,11 +25,11 @@ target = dbutils.widgets.get("target")
 
 import time
 
-from databricks.vector_search.client import VectorSearchClient
+from databricks.ai_search.client import AISearchClient
 
 source_table = f"{catalog}.silver.chunks"
 index_name = f"{catalog}.silver.chunks_index"
-vsc = VectorSearchClient(disable_notice=True)
+vsc = AISearchClient(disable_notice=True)
 
 # COMMAND ----------
 
