@@ -33,6 +33,16 @@ INDEX="$CATALOG.silver.chunks_index"
 if databricks tables get "$INDEX" >/dev/null 2>&1; then
   echo "index $INDEX: owner"
   databricks tables update "$INDEX" --owner "$SP" >/dev/null
+  # The index's update pipeline still runs as whoever created the index (you), so that
+  # identity needs MODIFY to write embeddings after the ownership change. MODIFY can't be
+  # granted on an index itself, so it goes on the index's schema.
+  PIPELINE_ID=$(databricks vector-search-indexes get-index "$INDEX" -o json \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["delta_sync_index_spec"]["pipeline_id"])')
+  RUN_AS=$(databricks pipelines get "$PIPELINE_ID" -o json \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["run_as_user_name"])')
+  echo "schema $CATALOG.silver: USE_SCHEMA, SELECT, MODIFY for the index pipeline ($RUN_AS)"
+  databricks grants update schema "$CATALOG.silver" \
+    --json "{\"changes\":[{\"principal\":\"$RUN_AS\",\"add\":[\"USE_SCHEMA\",\"SELECT\",\"MODIFY\"]}]}" >/dev/null
 fi
 
 echo "done"

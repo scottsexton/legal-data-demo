@@ -50,8 +50,11 @@ else:
 # COMMAND ----------
 
 
-def wait_until_synced(index, timeout_s=5000, poll_s=30):
+def wait_until_synced(index, timeout_s=5000, poll_s=30, previous_failure_ok=False):
     """Poll until the index is ONLINE with no pending update.
+
+    With previous_failure_ok, an index whose last update failed (ONLINE_PIPELINE_FAILED) also
+    counts as ready: that is the wait before triggering a new sync, which retries the update.
 
     (The client's own wait_until_ready compares a timedelta to an int and crashes.)
     A brand-new index first waits for the endpoint's compute (PROVISIONING_ENDPOINT).
@@ -63,6 +66,9 @@ def wait_until_synced(index, timeout_s=5000, poll_s=30):
         status = index.describe().get("status", {})
         state = status.get("detailed_state", "")
         print(f"[{int(time.time() - start):>5}s] {state}  {status.get('message', '')[:120]}")
+        if state == "ONLINE_PIPELINE_FAILED" and previous_failure_ok:
+            print("last update failed; a new sync will retry it")
+            return status
         if "FAILED" in state:
             raise RuntimeError(f"index failed: {status}")
         if state == "ONLINE_NO_PENDING_UPDATE":
@@ -75,7 +81,7 @@ def wait_until_synced(index, timeout_s=5000, poll_s=30):
 existing_indexes = [i["name"] for i in vsc.list_indexes(endpoint_name).get("vector_indexes", [])]
 if index_name in existing_indexes:
     index = vsc.get_index(endpoint_name, index_name)
-    wait_until_synced(index)  # finish any build or sync already in progress
+    wait_until_synced(index, previous_failure_ok=True)  # let any update in progress finish
     try:
         index.sync()
         print("syncing existing index")

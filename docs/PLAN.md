@@ -139,11 +139,12 @@ scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy and (
   2. copies the shared code to the Volume and deploys the bundle (`scripts/deploy.sh prod`);
   3. deploys the app's code and starts it (`databricks bundle run -t prod legal_app`);
   4. fails unless the app is running and its deployment succeeded (`scripts/check_app.sh`).
-- [x] **Prod runs as the service principal:** the job, the app and the bundle files are owned by `legal-data-demo-ci`; admins can manage them. `scripts/grant_ci.sh` gives it CAN_MANAGE on the warehouse and Vector Search endpoint and MANAGE on the catalog, so a deploy can grant the app its access.
+- [x] **Prod runs as the service principal:** the job, the app and the bundle files are owned by `legal-data-demo-ci`; admins can manage them. `scripts/grant_ci.sh` gives it CAN_MANAGE on the warehouse and Vector Search endpoint, MANAGE on the catalog (so a deploy can grant the app its access) and ownership of the index.
 - [x] **Dev and prod apps:** `legal-demo` (prod) and `legal-demo-dev` (dev, deployed from your laptop) are separate apps over the same data. `bundle validate -t prod` fails locally because only the service principal may deploy prod.
 - [x] **Dependabot** (`.github/dependabot.yml`): weekly update PRs for GitHub Actions and Python packages.
 - [ ] **Branch protection:** not available on a private repo on the free GitHub plan. Make the repo public or upgrade to require CI before merging.
-- Both targets share the `legal_demo` catalog, so the data is loaded once (the extraction took over 2 hours). The prod job can re-run the pipeline as the service principal.
+- Both targets share the `legal_demo` catalog, so the data is loaded once (the extraction took over 2 hours).
+- [x] **Prod pipeline runs as the service principal.** Only a Vector Search index's owner can sync it, so `scripts/grant_ci.sh` makes the service principal the owner of `silver.chunks_index`. The index's internal update pipeline still runs as its creator (you), so the script also grants that identity MODIFY on the `silver` schema (MODIFY can't be granted on an index directly). The dev job skips the sync with a message (your login isn't the owner); the prod job keeps the index in sync.
 
 ---
 
