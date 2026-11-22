@@ -1,1 +1,9 @@
+# Databricks Apps runtime config. Values come from the resources declared in databricks.yml.
 command: ["streamlit", "run", "app.py"]
+env:
+  - name: CATALOG
+    value: legal_demo
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  - name: CHAT_MODEL
+    valueFrom: chat-model

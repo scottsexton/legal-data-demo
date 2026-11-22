@@ -114,8 +114,26 @@ GitHub repo ──(GitHub Actions + Databricks Asset Bundles)──► Databrick
 
 ---
 
+## Phase 5: Streamlit App ✅
+Deployed as the Databricks App `legal-demo` (dev target): https://legal-demo-7474653380156089.aws.databricksapps.com
+- [x] **Login:** Databricks workspace SSO. Only workspace users with access to the app can open it; the sidebar shows who is signed in (from the `X-Forwarded-Email` header).
+- [x] **Browse:** all 459 cases, filtered by name/docket, year, opinion type and author. Author strings are noisy OCR (about 70 spellings), so `author_names()` maps them to the 7 justices plus "Per curiam". Selecting a case opens a dialog with its event timeline (✓ = verbatim quote), people, full text and a case.law link.
+- [x] **Search:** *Meaning* (hybrid Vector Search), *Exact words* (SQL, with highlighted snippets) and *People* (`gold.entities`). About 1 second each.
+- [x] **Ask:** RAG chat over up to 6 cases. Each case's source combines the best passages (hybrid search) with its extracted events; a year in the question also pulls in verified events dated that year. Answers stream (first words in about 2s) and cite cases as `[C1: Case Name]`, with a Sources list. "Ask about this case" limits the chat to one case.
+- [x] **Code:** `app/app.py` (UI), `app/backend.py` (SQL Statement API, Vector Search and the chat model through the SDK, no extra clients), `app/rag.py` (prompt and sources, unit tested), `app/display.py` (escaping and highlighting, unit tested).
+- [x] **Permissions:** the app runs as its own service principal. `databricks.yml` grants it CAN_USE on the warehouse, CAN_QUERY on both model endpoints and SELECT on the three tables and the Vector Search index.
+- [ ] **Prod app:** the app is in the `dev` target only. Deploying it from GitHub Actions needs the CI service principal to be allowed to make those grants (Phase 6).
+- [ ] **App users group:** to share the demo, add people to a group and give that group CAN_USE on the app.
+
+**Run it**
+```bash
+uv run streamlit run app/app.py               # locally, with your Databricks CLI login
+scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy and (re)start the app
+```
+
+---
+
 ## Later Phases (After Data Is Loaded)
-- **Phase 5, App:** a Databricks App (Streamlit) with three tabs: *Browse* (paged list and filters), *Search* (keyword + semantic), *Ask* (RAG chat that cites `doc_id`s and pulls from `gold.events` for "who / when / what" questions). Workspace SSO handles login, and you can limit access to an app-users group.
 - **Phase 6, CI/CD:** GitHub Actions runs `ruff` and `pytest` on each PR, and `databricks bundle deploy -t prod` on merge to `main`.
 - **Phase 7, Demo polish:** seed questions, an evaluation set of 20 Q&A pairs, and a short README with screenshots.
 

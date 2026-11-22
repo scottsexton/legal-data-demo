@@ -23,7 +23,6 @@ variables:
 
 # Raw data is downloaded and uploaded from a laptop (scripts/download_cap.py), because Free
 # Edition serverless compute can't reach static.case.law. This job does everything after that.
-# The Streamlit app is added in Phase 5.
 resources:
   jobs:
     legal_pipeline:
@@ -70,6 +69,34 @@ targets:
     default: true
     workspace:
       host: https://dbc-eade77b4-fdf2.cloud.databricks.com
+    # The app is dev-only for now: deploying it from CI would need the CI service principal to
+    # be able to grant the app access to the warehouse, model endpoints and tables.
+    resources:
+      apps:
+        legal_app:
+          name: legal-demo
+          description: Browse, search and ask questions about Indiana Supreme Court opinions
+          source_code_path: ./app
+          # Grants for the app's own service principal. Workspace sign-in controls who can open it.
+          resources:
+            - name: sql-warehouse
+              sql_warehouse: { id: "${var.warehouse_id}", permission: CAN_USE }
+            - name: chat-model
+              serving_endpoint: { name: "${var.chat_model}", permission: CAN_QUERY }
+            - name: embedding-model
+              serving_endpoint: { name: "${var.embedding_model}", permission: CAN_QUERY }
+            - name: documents
+              uc_securable:
+                { securable_full_name: "${var.catalog}.silver.documents", securable_type: TABLE, permission: SELECT }
+            - name: chunks-index
+              uc_securable:
+                { securable_full_name: "${var.catalog}.silver.chunks_index", securable_type: TABLE, permission: SELECT }
+            - name: entities
+              uc_securable:
+                { securable_full_name: "${var.catalog}.gold.entities", securable_type: TABLE, permission: SELECT }
+            - name: events
+              uc_securable:
+                { securable_full_name: "${var.catalog}.gold.events", securable_type: TABLE, permission: SELECT }
   prod:
     # Deployed by GitHub Actions as the `legal-data-demo-ci` service principal, into that
     # principal's own workspace folder. Workspace admins can view and manage it.

@@ -13,7 +13,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan.
 databricks.yml      Databricks Asset Bundle (jobs + app deployment)
 src/legal_demo/     shared Python (CAP download helpers, parsing, prompts)
 notebooks/          Databricks pipeline notebooks (ingest → transform → extract → index)
-app/                Streamlit app, deployed as a Databricks App
+app/                Streamlit app (Browse / Search / Ask), deployed as a Databricks App
 tests/              pytest tests
 data/               notes on the dataset (raw data is not committed)
 ```
@@ -48,3 +48,11 @@ databricks bundle run -t dev legal_pipeline --params max_docs=5   # quick test o
 Use `scripts/deploy.sh` rather than `databricks bundle deploy`: the notebooks import the shared
 code from a Volume (see [notebooks/README.md](notebooks/README.md)). Pushes to `main` deploy the
 `prod` target from GitHub Actions after CI passes.
+
+## App
+```bash
+uv run streamlit run app/app.py                    # run locally with your Databricks CLI login
+scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy, then (re)start the app
+```
+The deployed app uses workspace sign-in. It runs as its own service principal, with access to
+the warehouse, model endpoints, tables and Vector Search index granted in `databricks.yml`.

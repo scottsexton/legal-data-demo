@@ -1,4 +1,5 @@
-streamlit>=1.40
-databricks-sdk>=0.40
-databricks-sql-connector>=3.6
-databricks-vectorsearch>=0.40
+# Installed on top of the Databricks Apps runtime (which already has streamlit and pandas).
+streamlit>=1.50
+databricks-sdk>=0.60
+openai>=1.60
+pandas>=2.2
