@@ -28,7 +28,16 @@ targets:
     workspace:
       host: https://dbc-eade77b4-fdf2.cloud.databricks.com
   prod:
+    # Deployed by GitHub Actions as the `legal-data-demo-ci` service principal, into that
+    # principal's own workspace folder. Workspace admins can view and manage it.
     mode: production
     workspace:
       host: https://dbc-eade77b4-fdf2.cloud.databricks.com
-      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+      root_path: /Workspace/Users/da061def-bd47-4813-82c4-f55e52721e0c/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      service_principal_name: da061def-bd47-4813-82c4-f55e52721e0c
+    permissions:
+      - service_principal_name: da061def-bd47-4813-82c4-f55e52721e0c
+        level: CAN_MANAGE
+      - group_name: admins
+        level: CAN_MANAGE
