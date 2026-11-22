@@ -4,8 +4,8 @@ Pure functions (no Databricks calls), so they can be unit tested.
 
 Each answer draws on up to MAX_SOURCES cases. A case's source has passages from the opinion
 (found by hybrid Vector Search) and the people/dates/actions extracted into gold.events. A
-question that names a year also gets up to YEAR_SOURCES cases with events dated that year, since the cases were
-decided in 2013–2019 but describe events from much earlier.
+question that names a year also gets up to YEAR_SOURCES cases with events dated that year,
+since the cases were decided in 2013–2019 but describe events from much earlier.
 """
 
 from __future__ import annotations
