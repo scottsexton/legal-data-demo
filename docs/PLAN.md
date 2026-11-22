@@ -67,16 +67,19 @@ GitHub repo ──(GitHub Actions + Databricks Asset Bundles)──► Databrick
   ├── tests/
   └── .github/workflows/        # ci.yml (lint/test), deploy.yml (bundle deploy)
   ```
-- [ ] Create a virtual env and install `databricks-sdk`, `databricks-connect`, `databricks-vectorsearch`, `pandas`, `pytest` and `ruff`.
-- [ ] Push to GitHub with `gh repo create --private --source . --push`.
+- [x] Virtual env created with `uv sync --group dev` (Python 3.12).
+- [x] Pushed to https://github.com/scottsexton/legal-data-demo. CI (lint, format, tests) passes.
 
 ## Phase 2: Connect Dependencies
-- [ ] **Databricks CLI auth:** run `databricks auth login --host https://<workspace>`. This creates an OAuth profile in `~/.databrickscfg`.
-- [ ] Check it works: `databricks current-user me`.
-- [ ] **Databricks Git folder:** link the GitHub repo in the workspace (Workspace → Git folder) so notebooks stay in sync.
-- [ ] **CI/CD auth:** create a Databricks **service principal**. Use GitHub OIDC federation if your workspace supports it, otherwise an OAuth secret. Store `DATABRICKS_HOST` and the credentials as GitHub Actions secrets.
-- [ ] Run `databricks bundle init` (default-python template), then `databricks bundle validate` and `databricks bundle deploy -t dev`.
-- [ ] **LLM access:** confirm Foundation Model API endpoints are listed under *Serving* (a chat model plus an embedding model such as `databricks-gte-large-en`). Run a test call from a notebook.
+- [x] **Databricks CLI auth:** `DEFAULT` profile created for `https://dbc-eade77b4-fdf2.cloud.databricks.com`.
+- [x] Checked with `databricks current-user me`: workspace admin. Unity Catalog is on, with the default catalog `workspace`. The `Serverless Starter Warehouse` is available. Vector Search and Apps APIs respond, with nothing created yet.
+- [ ] **Databricks Git folder (optional):** link the GitHub repo in the workspace (Workspace → Create → Git folder) if you want to edit notebooks in the workspace UI. Bundle deploys don't need it.
+- [ ] **CI/CD auth:** create a workspace-level **service principal** with an OAuth secret (both supported on Free Edition). Store `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` as GitHub Actions secrets, then add `.github/workflows/deploy.yml`.
+- [x] `databricks bundle validate` and `databricks bundle deploy -t dev` both succeed. The host and model variables are in `databricks.yml`.
+- [x] **LLM access:** 8 chat and 3 embedding endpoints are ready. `scripts/smoke_test_llm.py` tests them. No Claude models on Free Edition.
+  - **Chat:** `databricks-meta-llama-3-3-70b-instruct`. It found all 4 events in the test passage as valid JSON (3.5s). Fastest alternative: `databricks-qwen3-next-80b-a3b-instruct` (1.2s, 3 events). `qwen35-122b` returned invalid JSON.
+  - **Embeddings:** `databricks-gte-large-en`, 1024 dimensions.
+- [ ] **Unity Catalog permissions:** Free Edition may not allow `CREATE CATALOG`. If it doesn't, use `workspace.legal_demo_*` schemas instead (check at the start of Phase 4).
 
 ## Phase 3: Download the Test Dataset
 - [x] Slice chosen: Indiana Supreme Court in `ne3d`, volumes about 81–130, about 500 cases.
@@ -121,4 +124,5 @@ GitHub repo ──(GitHub Actions + Databricks Asset Bundles)──► Databrick
 - ✅ **Hugging Face:** account created. It's optional now, since we download from `static.case.law` directly.
 - ✅ **GitHub repo:** https://github.com/scottsexton/legal-data-demo
 - ✅ **App UI:** Streamlit
-- ⏳ **Chat model:** pick from what the Free Edition workspace lists under *Serving* (Phase 2).
+- ✅ **Chat model:** `databricks-meta-llama-3-3-70b-instruct` (set in `databricks.yml` and easy to change).
+- ✅ **Embedding model:** `databricks-gte-large-en`
