@@ -122,7 +122,7 @@ Deployed as the Databricks App `legal-demo` (prod, deployed by GitHub Actions): 
 - [x] **Ask:** RAG chat over up to 6 cases. Each case's source combines the best passages (hybrid search) with its extracted events; a year in the question reserves up to 3 of the 6 slots for cases with events dated that year. Answers stream (first words in about 2s) and cite cases as `[C1: Case Name]`, with a Sources list. "Ask about this case" limits the chat to one case.
 - [x] **Code:** `app/app.py` (UI), `app/backend.py` (SQL Statement API, Vector Search and the chat model through the SDK, no extra clients), `app/rag.py` (prompt and sources, unit tested), `app/display.py` (escaping and highlighting, unit tested).
 - [x] **Permissions:** the app runs as its own service principal. `databricks.yml` grants it CAN_USE on the warehouse, CAN_QUERY on both model endpoints and SELECT on the three tables and the Vector Search index.
-- [ ] **App users group:** to share the demo, add people to a group and give that group CAN_USE on the app.
+- [x] **App users group:** `legal-demo-users` (a workspace group) has CAN_USE on both apps via `databricks.yml`. Add people to it to share the demo.
 
 **Run it**
 ```bash

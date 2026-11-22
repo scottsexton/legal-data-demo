@@ -113,6 +113,13 @@ The demo app is `legal-demo`, deployed to the `prod` target by GitHub Actions on
 access to the warehouse, model endpoints, tables and Vector Search index granted in
 `databricks.yml`.
 
+### Sharing the demo
+People can open the app if they are users in the Databricks workspace and members of the
+`legal-demo-users` group, which `databricks.yml` gives CAN_USE on the app (open it, nothing
+more; the app reads data as its own service principal). To add someone, as a workspace admin:
+**Settings → Identity and access → Groups → legal-demo-users → Add members** (invite them to the
+workspace first if they aren't a user yet). Then send them the app URL.
+
 ### CI/CD
 Every pull request and push runs ruff and pytest. After CI passes on `main`, GitHub Actions
 deploys the `prod` target as the `legal-data-demo-ci` service principal, deploys the app's code

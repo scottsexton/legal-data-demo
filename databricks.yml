@@ -73,6 +73,11 @@ resources:
       name: ${var.app_name}
       description: Browse, search and ask questions about Indiana Supreme Court opinions
       source_code_path: ./app
+      # Who can open the app (workspace sign-in). Add demo users to this group; CAN_USE lets
+      # them open the app, nothing else. The app reads data as its own service principal.
+      permissions:
+        - group_name: legal-demo-users
+          level: CAN_USE
       # Grants for the app's own service principal. Workspace sign-in controls who can open it.
       resources:
         - name: sql-warehouse
