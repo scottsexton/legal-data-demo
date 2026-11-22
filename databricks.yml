@@ -7,6 +7,15 @@ variables:
   catalog:
     description: Unity Catalog catalog that holds all demo data
     default: legal_demo
+  chat_model:
+    description: Foundation Model API endpoint for extraction and Q&A
+    default: databricks-meta-llama-3-3-70b-instruct
+  embedding_model:
+    description: Foundation Model API endpoint for embeddings (1024 dims)
+    default: databricks-gte-large-en
+  warehouse_id:
+    description: SQL warehouse used by the app and SQL tasks
+    default: bcb6defe8c0fdebf  # Serverless Starter Warehouse
 
 # Jobs (ingest → transform → extract → index) and the Streamlit app are added
 # as resources in Phases 3–5.
@@ -16,7 +25,10 @@ targets:
   dev:
     mode: development
     default: true
-    # The workspace host comes from your Databricks CLI profile (`databricks auth login`)
-    # or the DATABRICKS_HOST environment variable, so it isn't hard-coded here.
+    workspace:
+      host: https://dbc-eade77b4-fdf2.cloud.databricks.com
   prod:
     mode: production
+    workspace:
+      host: https://dbc-eade77b4-fdf2.cloud.databricks.com
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
