@@ -13,5 +13,7 @@ CREATE SCHEMA IF NOT EXISTS legal_demo.silver;
 CREATE SCHEMA IF NOT EXISTS legal_demo.gold;
 
 -- CI/CD service principal `legal-data-demo-ci` (deploys and runs prod jobs).
+-- scripts/grant_ci.sh adds MANAGE on the catalog plus warehouse and Vector Search permissions,
+-- which a prod deploy needs to grant the app its access.
 GRANT USE CATALOG, USE SCHEMA, SELECT, MODIFY, CREATE TABLE, READ VOLUME, WRITE VOLUME
   ON CATALOG legal_demo TO `da061def-bd47-4813-82c4-f55e52721e0c`;

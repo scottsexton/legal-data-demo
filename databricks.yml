@@ -20,6 +20,9 @@ variables:
   vs_endpoint:
     description: Vector Search endpoint name
     default: legal-demo-vs
+  app_name:
+    description: Databricks App name (also sets its URL); dev gets its own copy
+    default: legal-demo
 
 # Raw data is downloaded and uploaded from a laptop (scripts/download_cap.py), because Free
 # Edition serverless compute can't reach static.case.law. This job does everything after that.
@@ -63,40 +66,40 @@ resources:
           notebook_task:
             notebook_path: notebooks/05_validate.py
 
+  apps:
+    legal_app:
+      name: ${var.app_name}
+      description: Browse, search and ask questions about Indiana Supreme Court opinions
+      source_code_path: ./app
+      # Grants for the app's own service principal. Workspace sign-in controls who can open it.
+      resources:
+        - name: sql-warehouse
+          sql_warehouse: { id: "${var.warehouse_id}", permission: CAN_USE }
+        - name: chat-model
+          serving_endpoint: { name: "${var.chat_model}", permission: CAN_QUERY }
+        - name: embedding-model
+          serving_endpoint: { name: "${var.embedding_model}", permission: CAN_QUERY }
+        - name: documents
+          uc_securable:
+            { securable_full_name: "${var.catalog}.silver.documents", securable_type: TABLE, permission: SELECT }
+        - name: chunks-index
+          uc_securable:
+            { securable_full_name: "${var.catalog}.silver.chunks_index", securable_type: TABLE, permission: SELECT }
+        - name: entities
+          uc_securable:
+            { securable_full_name: "${var.catalog}.gold.entities", securable_type: TABLE, permission: SELECT }
+        - name: events
+          uc_securable:
+            { securable_full_name: "${var.catalog}.gold.events", securable_type: TABLE, permission: SELECT }
+
 targets:
   dev:
     mode: development
     default: true
     workspace:
       host: https://dbc-eade77b4-fdf2.cloud.databricks.com
-    # The app is dev-only for now: deploying it from CI would need the CI service principal to
-    # be able to grant the app access to the warehouse, model endpoints and tables.
-    resources:
-      apps:
-        legal_app:
-          name: legal-demo
-          description: Browse, search and ask questions about Indiana Supreme Court opinions
-          source_code_path: ./app
-          # Grants for the app's own service principal. Workspace sign-in controls who can open it.
-          resources:
-            - name: sql-warehouse
-              sql_warehouse: { id: "${var.warehouse_id}", permission: CAN_USE }
-            - name: chat-model
-              serving_endpoint: { name: "${var.chat_model}", permission: CAN_QUERY }
-            - name: embedding-model
-              serving_endpoint: { name: "${var.embedding_model}", permission: CAN_QUERY }
-            - name: documents
-              uc_securable:
-                { securable_full_name: "${var.catalog}.silver.documents", securable_type: TABLE, permission: SELECT }
-            - name: chunks-index
-              uc_securable:
-                { securable_full_name: "${var.catalog}.silver.chunks_index", securable_type: TABLE, permission: SELECT }
-            - name: entities
-              uc_securable:
-                { securable_full_name: "${var.catalog}.gold.entities", securable_type: TABLE, permission: SELECT }
-            - name: events
-              uc_securable:
-                { securable_full_name: "${var.catalog}.gold.events", securable_type: TABLE, permission: SELECT }
+    variables:
+      app_name: legal-demo-dev
   prod:
     # Deployed by GitHub Actions as the `legal-data-demo-ci` service principal, into that
     # principal's own workspace folder. Workspace admins can view and manage it.

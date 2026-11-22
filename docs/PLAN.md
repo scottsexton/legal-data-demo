@@ -115,26 +115,39 @@ GitHub repo ──(GitHub Actions + Databricks Asset Bundles)──► Databrick
 ---
 
 ## Phase 5: Streamlit App ✅
-Deployed as the Databricks App `legal-demo` (dev target): https://legal-demo-7474653380156089.aws.databricksapps.com
+Deployed as the Databricks App `legal-demo` (prod, deployed by GitHub Actions): https://legal-demo-7474653380156089.aws.databricksapps.com. Dev copy: `legal-demo-dev`.
 - [x] **Login:** Databricks workspace SSO. Only workspace users with access to the app can open it; the sidebar shows who is signed in (from the `X-Forwarded-Email` header).
 - [x] **Browse:** all 459 cases, filtered by name/docket, year, opinion type and author. Author strings are noisy OCR (about 70 spellings), so `author_names()` maps them to the 7 justices plus "Per curiam". Selecting a case opens a dialog with its event timeline (✓ = verbatim quote), people, full text and a case.law link.
 - [x] **Search:** *Meaning* (hybrid Vector Search), *Exact words* (SQL, with highlighted snippets) and *People* (`gold.entities`). About 1 second each.
 - [x] **Ask:** RAG chat over up to 6 cases. Each case's source combines the best passages (hybrid search) with its extracted events; a year in the question also pulls in verified events dated that year. Answers stream (first words in about 2s) and cite cases as `[C1: Case Name]`, with a Sources list. "Ask about this case" limits the chat to one case.
 - [x] **Code:** `app/app.py` (UI), `app/backend.py` (SQL Statement API, Vector Search and the chat model through the SDK, no extra clients), `app/rag.py` (prompt and sources, unit tested), `app/display.py` (escaping and highlighting, unit tested).
 - [x] **Permissions:** the app runs as its own service principal. `databricks.yml` grants it CAN_USE on the warehouse, CAN_QUERY on both model endpoints and SELECT on the three tables and the Vector Search index.
-- [ ] **Prod app:** the app is in the `dev` target only. Deploying it from GitHub Actions needs the CI service principal to be allowed to make those grants (Phase 6).
 - [ ] **App users group:** to share the demo, add people to a group and give that group CAN_USE on the app.
 
 **Run it**
 ```bash
 uv run streamlit run app/app.py               # locally, with your Databricks CLI login
-scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy and (re)start the app
+scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy and (re)start the dev app
 ```
 
 ---
 
+## Phase 6: CI/CD ✅
+- [x] **CI** (`.github/workflows/ci.yml`): every pull request and push to `main` runs `ruff check`, `ruff format --check` and `pytest` with a cached, locked `uv` environment. A newer run on the same branch cancels the older one.
+- [x] **Deploy** (`.github/workflows/deploy.yml`): after CI passes on `main` (or when run by hand), it authenticates as the `legal-data-demo-ci` service principal and then:
+  1. validates the bundle (`databricks bundle validate -t prod`);
+  2. copies the shared code to the Volume and deploys the bundle (`scripts/deploy.sh prod`);
+  3. deploys the app's code and starts it (`databricks bundle run -t prod legal_app`);
+  4. fails unless the app is running and its deployment succeeded (`scripts/check_app.sh`).
+- [x] **Prod runs as the service principal:** the job, the app and the bundle files are owned by `legal-data-demo-ci`; admins can manage them. `scripts/grant_ci.sh` gives it CAN_MANAGE on the warehouse and Vector Search endpoint and MANAGE on the catalog, so a deploy can grant the app its access.
+- [x] **Dev and prod apps:** `legal-demo` (prod) and `legal-demo-dev` (dev, deployed from your laptop) are separate apps over the same data. `bundle validate -t prod` fails locally because only the service principal may deploy prod.
+- [x] **Dependabot** (`.github/dependabot.yml`): weekly update PRs for GitHub Actions and Python packages.
+- [ ] **Branch protection:** not available on a private repo on the free GitHub plan. Make the repo public or upgrade to require CI before merging.
+- Both targets share the `legal_demo` catalog, so the data is loaded once (the extraction took over 2 hours). The prod job can re-run the pipeline as the service principal.
+
+---
+
 ## Later Phases (After Data Is Loaded)
-- **Phase 6, CI/CD:** GitHub Actions runs `ruff` and `pytest` on each PR, and `databricks bundle deploy -t prod` on merge to `main`.
 - **Phase 7, Demo polish:** seed questions, an evaluation set of 20 Q&A pairs, and a short README with screenshots.
 
 ## Decisions

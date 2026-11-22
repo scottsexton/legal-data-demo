@@ -1,18 +1,27 @@
 name: CI
 
+# Lint and test every pull request and every push to main. Deploy (deploy.yml) runs only after
+# this passes on main.
 on:
   push:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - run: uv python install 3.12
-      - run: uv sync --group dev
+      - run: uv sync --group dev --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -q

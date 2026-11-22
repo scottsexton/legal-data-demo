@@ -47,12 +47,14 @@ databricks bundle run -t dev legal_pipeline --params max_docs=5   # quick test o
 ```
 Use `scripts/deploy.sh` rather than `databricks bundle deploy`: the notebooks import the shared
 code from a Volume (see [notebooks/README.md](notebooks/README.md)). Pushes to `main` deploy the
-`prod` target from GitHub Actions after CI passes.
+`prod` target from GitHub Actions after CI passes (see Phase 6 in [docs/PLAN.md](docs/PLAN.md)).
 
 ## App
 ```bash
 uv run streamlit run app/app.py                    # run locally with your Databricks CLI login
-scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy, then (re)start the app
+scripts/deploy.sh dev && databricks bundle run -t dev legal_app   # deploy, then (re)start the dev app
 ```
+The demo app is `legal-demo`, deployed to the `prod` target by GitHub Actions on every merge to
+`main`. Your own dev copy is `legal-demo-dev`.
 The deployed app uses workspace sign-in. It runs as its own service principal, with access to
 the warehouse, model endpoints, tables and Vector Search index granted in `databricks.yml`.

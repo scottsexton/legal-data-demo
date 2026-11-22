@@ -1,6 +1,7 @@
 name: Deploy
 
-# Deploys the Databricks Asset Bundle to the prod target after CI passes on main.
+# Deploys the Databricks Asset Bundle to the prod target after CI passes on main, then deploys
+# the app's code and checks that the app is running.
 # Authenticates as the `legal-data-demo-ci` service principal (OAuth machine-to-machine).
 on:
   workflow_run:
@@ -17,6 +18,7 @@ jobs:
   deploy:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       DATABRICKS_HOST: https://dbc-eade77b4-fdf2.cloud.databricks.com
       DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
@@ -29,3 +31,7 @@ jobs:
       - run: databricks current-user me
       - run: databricks bundle validate -t prod
       - run: scripts/deploy.sh prod
+      - name: Deploy app code and start the app
+        run: databricks bundle run -t prod legal_app
+      - name: Check the app is running
+        run: scripts/check_app.sh legal-demo
