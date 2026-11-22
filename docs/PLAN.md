@@ -93,15 +93,24 @@ GitHub repo ──(GitHub Actions + Databricks Asset Bundles)──► Databrick
 
 ## Phase 4: Create & Load the Data Storage
 - [x] **Unity Catalog objects:** done early in Phase 3. See `sql/00_setup.sql`: catalog `legal_demo`, schemas `raw`/`bronze`/`silver`/`gold`, Volume `raw.cap`, and grants to the CI service principal.
-- [ ] **Bronze:** `bronze.documents_raw` holds the JSON as loaded (Auto Loader or `read_files`).
-- [ ] **Silver:** `silver.documents` has `doc_id, case_name, court, decision_date, citation, judges, parties, full_text, source_url`.
-- [ ] **Silver:** `silver.chunks` has `chunk_id, doc_id, chunk_index, text`, with about 1,000-token chunks that overlap. Turn on Change Data Feed.
-- [ ] **Gold (the "people, times, actions" layer):** run LLM extraction with `ai_query()` or a Python UDF and a JSON schema:
-  - `gold.entities`: `doc_id, name, type (person/org), role (judge/plaintiff/defendant/attorney)`
-  - `gold.events`: `doc_id, actor, action, target, event_date, evidence_quote`
-- [ ] **Vector Search:** create an endpoint and a Delta Sync index on `silver.chunks` using the embedding endpoint.
-- [ ] **Validation notebook:** row counts, null checks, and spot-checks of 10 extracted events against the source text.
-- [ ] Package notebooks 01–04 as one **Databricks Job** in `databricks.yml` so the whole pipeline re-runs from one command.
+- [x] **Bronze:** `bronze.documents_raw` holds each JSON file as loaded (`spark.read.text(..., wholetext=True)`). `bronze.extractions_raw` keeps every raw LLM reply, so prompts can change without losing history.
+- [x] **Silver:** `silver.documents` has 459 rows: `doc_id, case_name, court, decision_date, citation, judges, parties, attorneys, opinion_types, full_text, source_url`, and more.
+- [x] **Silver:** `silver.chunks` has 4,723 chunks (`chunk_id, doc_id, chunk_index, text`) of about 3,000 characters with 400 characters of overlap. Change Data Feed is on, and it's loaded with MERGE so re-runs only touch changed chunks.
+- [x] **Gold (the "people, times, actions" layer):** Python extraction with a JSON prompt (`src/legal_demo/extract.py`, prompt `v2`), run on long opinions in segments of 24,000 characters:
+  - `gold.entities`: `doc_id, name, entity_type, role, description, mentions`
+  - `gold.events`: `event_id, doc_id, actor, action, target, event_date, date_text, evidence_quote, quote_verified`
+  - `quote_verified` is true when the quote appears word for word in the opinion.
+  - Full run: 665 segments, 0 failed calls, 2h10m. 7,906 events (84% of quotes verified, 44% with a full date, 59% with at least a year) and 7,663 entities; 457 of 459 cases have events.
+  - If the model pads a partial date ("1999" → 1999-01-01), the parser keeps only the year or month.
+- [x] **Vector Search:** endpoint `legal-demo-vs` and a Delta Sync index `silver.chunks_index` with managed `databricks-gte-large-en` embeddings. The first build of all 4,723 chunks took over an hour on Free Edition; later syncs only embed changed chunks.
+- [x] **Validation notebook:** `05_validate.py` checks row counts, uniqueness, orphan chunks, extraction coverage and the share of verified quotes, and prints 10 random events to spot-check.
+- [x] **Databricks Job:** `legal-data-pipeline` in `databricks.yml`: transform → (extract ‖ index) → validate. Deploy with `scripts/deploy.sh dev`, then run with `databricks bundle run -t dev legal_pipeline`.
+
+**What changed during Phase 4**
+- **Chat model is now `databricks-qwen3-next-80b-a3b-instruct`.** On Free Edition, Llama 3.3 70B was throttled to 200–300s per segment, which would mean about 7 hours for the full run. On 4 real segments at once, Qwen took ~20s and found more events (86% of quotes verbatim, 76% dated); Llama took 91s. Llama 4 Maverick's quotes were only 35% verbatim, and GPT-OSS 120B returned invalid JSON.
+- **Extraction is slower under sustained load:** each call took ~54s on average, not ~20s as in the benchmark. The extract step skips segments already saved, so a run that times out resumes where it stopped.
+- **Cut-off replies are recovered:** if a reply hits the output limit, the parser keeps every complete entity and event.
+- **Shared code loads from a Volume:** notebooks on Free Edition often got `[Errno 5] Input/output error` reading bundle files right after a deploy. `scripts/push_code.sh` copies `src/legal_demo` to `/Volumes/legal_demo/raw/code/<target>/`, and the notebooks import from there.
 
 ---
 
@@ -116,5 +125,5 @@ GitHub repo ──(GitHub Actions + Databricks Asset Bundles)──► Databrick
 - ✅ **Hugging Face:** account created. It's optional now, since we download from `static.case.law` directly.
 - ✅ **GitHub repo:** https://github.com/scottsexton/legal-data-demo
 - ✅ **App UI:** Streamlit
-- ✅ **Chat model:** `databricks-meta-llama-3-3-70b-instruct` (set in `databricks.yml` and easy to change).
+- ✅ **Chat model:** `databricks-qwen3-next-80b-a3b-instruct` (switched from Llama 3.3 70B in Phase 4; set in `databricks.yml` and easy to change).
 - ✅ **Embedding model:** `databricks-gte-large-en`

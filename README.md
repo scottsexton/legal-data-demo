@@ -38,3 +38,13 @@ uv run streamlit run app/app.py   # run the app locally
 uv run python scripts/download_cap.py --upload   # download 459 Indiana Supreme Court opinions, upload to UC
 ```
 See [data/README.md](data/README.md) for the source, filter and layout.
+
+## Pipeline
+```bash
+scripts/deploy.sh dev                                  # copy src/legal_demo to a UC Volume, deploy the bundle
+databricks bundle run -t dev legal_pipeline            # transform → extract + index → validate
+databricks bundle run -t dev legal_pipeline --params max_docs=5   # quick test on 5 cases
+```
+Use `scripts/deploy.sh` rather than `databricks bundle deploy`: the notebooks import the shared
+code from a Volume (see [notebooks/README.md](notebooks/README.md)). Pushes to `main` deploy the
+`prod` target from GitHub Actions after CI passes.

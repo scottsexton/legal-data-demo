@@ -9,7 +9,7 @@ variables:
     default: legal_demo
   chat_model:
     description: Foundation Model API endpoint for extraction and Q&A
-    default: databricks-meta-llama-3-3-70b-instruct
+    default: databricks-qwen3-next-80b-a3b-instruct
   embedding_model:
     description: Foundation Model API endpoint for embeddings (1024 dims)
     default: databricks-gte-large-en
@@ -17,9 +17,52 @@ variables:
     description: SQL warehouse used by the app and SQL tasks
     default: bcb6defe8c0fdebf  # Serverless Starter Warehouse
 
-# Jobs (ingest → transform → extract → index) and the Streamlit app are added
-# as resources in Phases 3–5.
-resources: {}
+  vs_endpoint:
+    description: Vector Search endpoint name
+    default: legal-demo-vs
+
+# Raw data is downloaded and uploaded from a laptop (scripts/download_cap.py), because Free
+# Edition serverless compute can't reach static.case.law. This job does everything after that.
+# The Streamlit app is added in Phase 5.
+resources:
+  jobs:
+    legal_pipeline:
+      name: legal-data-pipeline
+      description: Volume JSON → silver documents/chunks → LLM people/events (gold) → Vector Search
+      max_concurrent_runs: 1
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: chat_model
+          default: ${var.chat_model}
+        - name: embedding_model
+          default: ${var.embedding_model}
+        - name: vs_endpoint
+          default: ${var.vs_endpoint}
+        - name: max_docs
+          default: "0"
+        - name: workers
+          default: "6"
+        - name: code_path
+          default: /Volumes/${var.catalog}/raw/code/${bundle.target}
+      tasks:
+        - task_key: transform
+          notebook_task:
+            notebook_path: notebooks/02_transform.py
+        - task_key: extract
+          depends_on: [{ task_key: transform }]
+          timeout_seconds: 10800
+          notebook_task:
+            notebook_path: notebooks/03_extract.py
+        - task_key: index
+          depends_on: [{ task_key: transform }]
+          timeout_seconds: 5400
+          notebook_task:
+            notebook_path: notebooks/04_index.py
+        - task_key: validate
+          depends_on: [{ task_key: extract }, { task_key: index }]
+          notebook_task:
+            notebook_path: notebooks/05_validate.py
 
 targets:
   dev:
